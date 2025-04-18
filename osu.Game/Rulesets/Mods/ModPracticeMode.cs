@@ -15,7 +15,7 @@ namespace osu.Game.Rulesets.Osu.Mods
     {
         public override string Name => "Practice Mode";
         public override string Acronym => "PM";
-        public override string Description => "Start at a custom time with checkpoints. FC mode restarts on misses. Adds 1.5s blank space after respawn.";
+        public override string Description => "Start at a custom time with checkpoints.";
         public override ModType Type => ModType.Training;
 
         [SettingSource("Start Time (s)", "Where to start the beatmap (in seconds)")]

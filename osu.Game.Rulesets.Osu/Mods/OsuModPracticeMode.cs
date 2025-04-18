@@ -111,10 +111,15 @@ namespace osu.Game.Rulesets.Osu.Mods
             }, 1500);
         }
 
-        protected override void Dispose(bool isDisposing)
+        protected virtual void Dispose(bool disposing)
         {
-            base.Dispose(isDisposing);
             blankPeriodEndSchedule?.Cancel();
+        }
+
+        public void Dispose()
+        {
+            Dispose(true);
+            GC.SuppressFinalize(this);
         }
     }
 }

@@ -121,6 +121,9 @@ namespace osu.Game.Rulesets.Osu
 
             if (mods.HasFlag(LegacyMods.ScoreV2))
                 yield return new ModScoreV2();
+                
+            if (type == ModType.Training)
+                yield return new OsuModPracticeMode();
         }
 
         public override LegacyMods ConvertToLegacyMods(Mod[] mods)

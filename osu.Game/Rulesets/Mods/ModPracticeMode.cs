@@ -2,11 +2,11 @@ using osu.Game.Beatmaps;
 using osu.Game.Rulesets.Mods;
 using osu.Game.Rulesets.Objects;
 using osu.Game.Rulesets.Osu.Objects;
-using osu.Game.Rulesets.Osu.UI;
 using osu.Game.Rulesets.Scoring;
 using osu.Game.Configuration;
 using osu.Game.Screens.Play;
-using osu.Game.Rulesets.UI;
+using osu.Framework.Bindables;
+using osu.Framework.Threading;
 using System.Linq;
 
 namespace osu.Game.Rulesets.Osu.Mods
@@ -15,10 +15,10 @@ namespace osu.Game.Rulesets.Osu.Mods
     {
         public override string Name => "Practice Mode";
         public override string Acronym => "PM";
-        public override string Description => "Start at a custom time with checkpoints. FC mode restarts on misses. Adds 1.5s blank space after respawn.";
+        public override string Description => "Start at a custom time with checkpoints at set intervals.";
         public override ModType Type => ModType.Training;
 
-        [SettingSource("Start Time (s)", "Where to start the beatmap (in seconds)")]
+        [SettingSource("Start Time (s)", "Where to start the beatmap")]
         public BindableFloat StartTime { get; } = new BindableFloat
         {
             MinValue = 0,
@@ -27,7 +27,7 @@ namespace osu.Game.Rulesets.Osu.Mods
             Precision = 0.1f
         };
 
-        [SettingSource("Checkpoint Interval (s)", "How often checkpoints are placed (in seconds)")]
+        [SettingSource("Checkpoint Interval (s)", "Distance between checkpoints")]
         public BindableFloat CheckpointInterval { get; } = new BindableFloat
         {
             MinValue = 1,
@@ -36,31 +36,27 @@ namespace osu.Game.Rulesets.Osu.Mods
             Precision = 0.1f
         };
 
-        [SettingSource("FC Mode", "Restart on misses if enabled")]
+        [SettingSource("FC Mode", "Restart on misses")]
         public BindableBool FcMode { get; } = new BindableBool();
 
         private double[] checkpoints;
         private Player player;
         private DrawableRuleset<OsuHitObject> drawableRuleset;
+        private bool isInBlankPeriod;
+        private ScheduledDelegate blankPeriodEndSchedule;
 
         public void ApplyToDrawableRuleset(DrawableRuleset<OsuHitObject> drawableRuleset)
         {
             this.drawableRuleset = drawableRuleset;
             var beatmap = drawableRuleset.Beatmap;
 
-            // Generate checkpoints at the specified interval
-            double lastCheckpointTime = 0;
+            // Generate checkpoints at intervals
             checkpoints = beatmap.HitObjects
-                .Where(obj => obj.StartTime >= lastCheckpointTime + CheckpointInterval.Value * 1000)
-                .Select(obj => 
-                {
-                    lastCheckpointTime = obj.StartTime;
-                    return lastCheckpointTime;
-                })
+                .Where(o => o.StartTime % (CheckpointInterval.Value * 1000) < 50) // ~every X seconds
+                .Select(o => o.StartTime)
                 .ToArray();
 
-            // Seek to start time (with 3s countdown)
-            beatmap.Track.Seek(StartTime.Value * 1000 - 3000);
+            beatmap.Track.Seek(StartTime.Value * 1000 - 3000); // Start with 3s countdown
         }
 
         public void ApplyToPlayer(Player player)
@@ -72,44 +68,47 @@ namespace osu.Game.Rulesets.Osu.Mods
 
         private void OnFail()
         {
-            if (!FcMode.Value)
+            if (!FcMode.Value && !isInBlankPeriod)
                 RestartToNearestCheckpoint();
         }
 
         private void OnJudgement(JudgementResult judgement)
         {
-            if (FcMode.Value && judgement.IsMiss)
+            if (FcMode.Value && judgement.IsMiss && !isInBlankPeriod)
                 RestartToNearestCheckpoint();
         }
 
         private void RestartToNearestCheckpoint()
         {
+            blankPeriodEndSchedule?.Cancel(); // Cancel any pending blank period end
+
             double currentTime = player.GameplayClockContainer.CurrentTime;
-            double nearestCheckpoint = 0;
+            double nearestCheckpoint = checkpoints.LastOrDefault(c => c <= currentTime);
 
-            // Find the nearest checkpoint before the failure time
-            foreach (var checkpoint in checkpoints)
-            {
-                if (checkpoint <= currentTime)
-                    nearestCheckpoint = checkpoint;
-                else
-                    break;
-            }
-
-            // Hide all hit objects for 1.5s after the checkpoint
-            double blankStartTime = nearestCheckpoint;
-            double blankEndTime = nearestCheckpoint + 1500; // 1.5s blank space
-
+            // Activate blank period
+            isInBlankPeriod = true;
             foreach (var obj in drawableRuleset.Objects)
             {
-                if (obj.StartTime >= blankStartTime && obj.StartTime < blankEndTime)
-                    obj.Alpha = 0; // Hide the object
-                else if (obj.StartTime >= blankEndTime)
-                    obj.Alpha = 1; // Show objects after the blank period
+                if (obj.StartTime >= nearestCheckpoint && obj.StartTime < nearestCheckpoint + 1500)
+                    obj.Alpha = 0;
             }
 
             // Seek to checkpoint (with 3s countdown)
             player.GameplayClockContainer.Seek(nearestCheckpoint - 3000);
+
+            // Schedule end of blank period
+            blankPeriodEndSchedule = player.Schedule(() =>
+            {
+                isInBlankPeriod = false;
+                foreach (var obj in drawableRuleset.Objects)
+                    obj.Alpha = 1;
+            }, 1500);
+        }
+
+        protected override void Dispose(bool isDisposing)
+        {
+            base.Dispose(isDisposing);
+            blankPeriodEndSchedule?.Cancel();
         }
     }
 }

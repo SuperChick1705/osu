@@ -2,21 +2,27 @@ using osu.Game.Beatmaps;
 using osu.Game.Rulesets.Mods;
 using osu.Game.Rulesets.Objects;
 using osu.Game.Rulesets.Osu.Objects;
+using osu.Game.Rulesets.Osu.UI;
 using osu.Game.Rulesets.Scoring;
 using osu.Game.Configuration;
 using osu.Game.Screens.Play;
 using osu.Framework.Bindables;
 using osu.Framework.Threading;
+using osu.Framework.Graphics;
+using osu.Game.Rulesets.UI;
+using osu.Game.Rulesets.Judgements;
+using osu.Framework.Localisation;
 using System.Linq;
 
 namespace osu.Game.Rulesets.Osu.Mods
 {
-    public class OsuModPracticeMode : Mod, IApplicableToDrawableRuleset<OsuHitObject>, IApplicableToPlayer
+    public class OsuModPracticeMode : Mod, IApplicableToDrawableRuleset<OsuHitObject>, IApplicableToPlayer, IDisposable
     {
         public override string Name => "Practice Mode";
         public override string Acronym => "PM";
-        public override string Description => "Start at a custom time with checkpoints at set intervals.";
+        public override LocalisableString Description => "Start at a custom time with checkpoints at set intervals.";
         public override ModType Type => ModType.Training;
+        public override double ScoreMultiplier => 1.0;
 
         [SettingSource("Start Time (s)", "Where to start the beatmap")]
         public BindableFloat StartTime { get; } = new BindableFloat

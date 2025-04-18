@@ -11,7 +11,7 @@ using System.Linq;
 
 namespace osu.Game.Rulesets.Osu.Mods
 {
-    public class ModPracticeMode : Mod, IApplicableToDrawableRuleset<OsuHitObject>, IApplicableToPlayer
+    public class OsuModPracticeMode : Mod, IApplicableToDrawableRuleset<OsuHitObject>, IApplicableToPlayer
     {
         public override string Name => "Practice Mode";
         public override string Acronym => "PM";

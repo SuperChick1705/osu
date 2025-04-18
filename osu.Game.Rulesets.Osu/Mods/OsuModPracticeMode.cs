@@ -14,7 +14,6 @@ using osu.Game.Rulesets.Osu.Objects.Drawables;
 using osu.Game.Rulesets.Scoring;
 using osu.Game.Rulesets.UI;
 using osu.Game.Screens.Play;
-using osu.Game.Utils;
 using System.Linq;
 
 namespace osu.Game.Rulesets.Osu.Mods
@@ -49,50 +48,51 @@ namespace osu.Game.Rulesets.Osu.Mods
         public BindableBool FcMode { get; } = new BindableBool();
 
         private double[] checkpoints = Array.Empty<double>();
-        private Player? player;
         private DrawableRuleset<OsuHitObject>? drawableRuleset;
         private bool isInBlankPeriod;
         private ScheduledDelegate? blankPeriodEndSchedule;
+        private IBeatmap? workingBeatmap;
+        private IScoreProcessor? scoreProcessor;
+        private IGameplayClock? gameplayClock;
 
         public void ApplyToDrawableRuleset(DrawableRuleset<OsuHitObject> drawableRuleset)
         {
             this.drawableRuleset = drawableRuleset;
-            var workingBeatmap = (player?.GameplayState?.Beatmap ?? drawableRuleset.Beatmap);
+            this.workingBeatmap = drawableRuleset.Beatmap;
             
             checkpoints = workingBeatmap.HitObjects
                 .Where(o => o.StartTime % (CheckpointInterval.Value * 1000) < 50)
                 .Select(o => o.StartTime)
                 .ToArray();
-
-            workingBeatmap.Track.Seek(StartTime.Value * 1000 - 3000);
         }
 
         public void ApplyToPlayer(Player player)
         {
-            this.player = player;
-            player.Fail += OnFail;
-            player.ScoreProcessor.NewJudgement += OnJudgement;
-        }
-
-        private void OnFail()
-        {
-            if (!FcMode.Value && !isInBlankPeriod && player != null && drawableRuleset != null)
-                RestartToNearestCheckpoint();
+            // Get dependencies through DI or reflection
+            scoreProcessor = player.Dependencies.Get<IScoreProcessor>();
+            gameplayClock = player.Dependencies.Get<IGameplayClock>();
+            
+            if (workingBeatmap?.Track != null)
+            {
+                workingBeatmap.Track.Seek(StartTime.Value * 1000 - 3000);
+            }
+            
+            scoreProcessor.NewJudgement += OnJudgement;
         }
 
         private void OnJudgement(JudgementResult judgement)
         {
-            if (FcMode.Value && judgement.IsMiss && !isInBlankPeriod && player != null && drawableRuleset != null)
-                RestartToNearestCheckpoint();
+            if (FcMode.Value && judgement.IsMiss && !isInBlankPeriod)
+                RequestRestart();
         }
 
-        private void RestartToNearestCheckpoint()
+        private void RequestRestart()
         {
-            if (player == null || drawableRuleset == null) return;
+            if (drawableRuleset == null || gameplayClock == null) return;
 
             blankPeriodEndSchedule?.Cancel();
 
-            double currentTime = player.GameplayClockContainer.CurrentTime;
+            double currentTime = gameplayClock.CurrentTime;
             double nearestCheckpoint = checkpoints.LastOrDefault(c => c <= currentTime);
 
             isInBlankPeriod = true;
@@ -102,9 +102,9 @@ namespace osu.Game.Rulesets.Osu.Mods
                     obj.Alpha = 0;
             }
 
-            player.GameplayClockContainer.Seek(nearestCheckpoint - 3000);
+            gameplayClock.Seek(nearestCheckpoint - 3000);
 
-            blankPeriodEndSchedule = player.Schedule(() =>
+            blankPeriodEndSchedule = (drawableRuleset as DrawableRuleset)?.Schedule(() =>
             {
                 isInBlankPeriod = false;
                 foreach (var obj in drawableRuleset.Objects.OfType<DrawableHitObject>())
@@ -115,6 +115,10 @@ namespace osu.Game.Rulesets.Osu.Mods
         protected virtual void Dispose(bool disposing)
         {
             blankPeriodEndSchedule?.Cancel();
+            if (scoreProcessor != null)
+            {
+                scoreProcessor.NewJudgement -= OnJudgement;
+            }
         }
 
         public void Dispose()

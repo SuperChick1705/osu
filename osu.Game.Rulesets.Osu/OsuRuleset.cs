@@ -221,7 +221,7 @@ namespace osu.Game.Rulesets.Osu
                 case ModType.Training:
                     return new Mod[]
                     {
-                        new OsuModPracticeMode
+                        new OsuModPracticeMode()
                     };
 
                 case ModType.System:

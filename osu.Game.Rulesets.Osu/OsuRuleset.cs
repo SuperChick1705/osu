@@ -200,7 +200,7 @@ namespace osu.Game.Rulesets.Osu
                 case ModType.Fun:
                     return new Mod[]
                     {
-                        new RhythmicallyIncorrect(),
+                        new OsuModRhythmicallyIncorrect(),
                         new OsuModTransform(),
                         new OsuModWiggle(),
                         new OsuModSpinIn(),

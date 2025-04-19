@@ -218,11 +218,11 @@ namespace osu.Game.Rulesets.Osu
                         new OsuModBloom()
                     };
 
-                case ModType.Training:
-                    return new Mod[]
-                    {
-                        new OsuModPracticeMode()
-                    };
+                // case ModType.Training:
+                //     return new Mod[]
+                //     {
+                //         new OsuModPracticeMode()
+                //     };
 
                 case ModType.System:
                     return new Mod[]

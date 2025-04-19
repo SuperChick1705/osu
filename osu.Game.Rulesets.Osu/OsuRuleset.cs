@@ -162,7 +162,6 @@ namespace osu.Game.Rulesets.Osu
                         new OsuModEasy(),
                         new OsuModNoFail(),
                         new MultiMod(new OsuModHalfTime(), new OsuModDaycore()),
-                        new OsuModAdjustAR()
                     };
 
                 case ModType.DifficultyIncrease:
@@ -182,6 +181,7 @@ namespace osu.Game.Rulesets.Osu
                     {
                         new OsuModTargetPractice(),
                         new OsuModDifficultyAdjust(),
+                        new OsuModAdjustAR(),
                         new OsuModClassic(),
                         new OsuModRandom(),
                         new OsuModMirror(),
@@ -200,6 +200,7 @@ namespace osu.Game.Rulesets.Osu
                 case ModType.Fun:
                     return new Mod[]
                     {
+                        new RhythmicallyIncorrect(),
                         new OsuModTransform(),
                         new OsuModWiggle(),
                         new OsuModSpinIn(),
